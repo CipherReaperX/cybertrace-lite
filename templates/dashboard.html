@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CyberTrace-Lite | User Behavior Security Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<nav class="navbar navbar-dark ct-navbar">
+  <div class="container-fluid px-4">
+    <span class="navbar-brand mb-0 h1 d-flex align-items-center gap-2">
+      <span class="ct-logo">🛡</span>
+      CYBERTRACE-LITE
+      <small class="ct-subtitle">User Behavior Security Monitor</small>
+    </span>
+    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+      <span id="lastUpdated" class="text-muted small me-1"></span>
+      <a href="{{ url_for('report') }}" class="btn btn-sm btn-outline-light">Report</a>
+      <a href="{{ url_for('export_csv') }}" class="btn btn-sm btn-outline-light">Export CSV</a>
+      {% if current_role == 'admin' %}
+      <a href="{{ url_for('upload_logs') }}" class="btn btn-sm btn-outline-light">Upload Logs</a>
+      <a href="{{ url_for('settings_page') }}" class="btn btn-sm btn-outline-light">Settings</a>
+      <a href="{{ url_for('audit_log_page') }}" class="btn btn-sm btn-outline-light">Audit Log</a>
+      <button id="runPipelineBtn" class="btn btn-sm ct-btn-primary">
+        <span id="runBtnLabel">Regenerate Logs &amp; Analyze</span>
+        <span id="runBtnSpinner" class="spinner-border spinner-border-sm d-none ms-1"></span>
+      </button>
+      {% endif %}
+      <span class="user-chip">👤 {{ current_user }} ({{ current_role }})</span>
+      <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid px-4 py-4">
+
+  <!-- Stat cards -->
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="ct-card stat-card">
+        <div class="stat-label">USERS</div>
+        <div class="stat-value" id="statUsers">--</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="ct-card stat-card">
+        <div class="stat-label">EVENTS</div>
+        <div class="stat-value" id="statEvents">--</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="ct-card stat-card">
+        <div class="stat-label">ALERTS</div>
+        <div class="stat-value stat-alert" id="statAlerts">--</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="ct-card stat-card">
+        <div class="stat-label">HIGH RISK USERS</div>
+        <div class="stat-value stat-highrisk" id="statHighRisk">--</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3D Risk Landscape + Model Insights -->
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-7">
+      <div class="ct-card p-3 h-100">
+        <div class="ct-card-title">🌐 Risk Landscape (3D)</div>
+        <div class="risk3d-wrap" id="risk3d"></div>
+        <div class="risk3d-caption">
+          <span>X: Rule Score &nbsp;·&nbsp; Y: Anomaly Score &nbsp;·&nbsp; Z: Final Score &nbsp;·&nbsp; drag to rotate</span>
+          <span class="risk3d-legend">
+            <span><span class="risk3d-dot" style="background:var(--ct-normal)"></span>Normal</span>
+            <span><span class="risk3d-dot" style="background:var(--ct-suspicious)"></span>Suspicious</span>
+            <span><span class="risk3d-dot" style="background:var(--ct-highrisk)"></span>High risk</span>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-5">
+      <div class="ct-card p-3 h-100">
+        <div class="ct-card-title">🎯 Model Insights</div>
+        <div class="insight-grid">
+          <div class="insight-tile"><div class="insight-value" id="insightPrecision">--</div><div class="insight-label">Precision</div></div>
+          <div class="insight-tile"><div class="insight-value" id="insightRecall">--</div><div class="insight-label">Recall</div></div>
+          <div class="insight-tile"><div class="insight-value" id="insightF1">--</div><div class="insight-label">F1 score</div></div>
+        </div>
+        <table class="confusion-table">
+          <thead><tr><th></th><th>Predicted anomalous</th><th>Predicted normal</th></tr></thead>
+          <tbody>
+            <tr><th>Actually anomalous</th><td id="cmTp">--</td><td id="cmFn">--</td></tr>
+            <tr><th>Actually normal</th><td id="cmFp">--</td><td id="cmTn">--</td></tr>
+          </tbody>
+        </table>
+        <div class="insight-note" id="insightNote">Loading model evaluation...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="row g-3 mb-3">
+    <div class="col-12">
+      <div class="ct-card p-3">
+        <div class="ct-card-title">Activity / Anomaly Timeline</div>
+        <canvas id="timelineChart" height="90"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribution + Top suspicious -->
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-5">
+      <div class="ct-card p-3 h-100">
+        <div class="ct-card-title">Risk Distribution</div>
+        <canvas id="riskDonutChart" height="220"></canvas>
+        <div id="riskLegend" class="mt-3"></div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-7">
+      <div class="ct-card p-3 h-100">
+        <div class="ct-card-title">Top Suspicious Users</div>
+        <div class="table-responsive">
+          <table class="table ct-table align-middle mb-0">
+            <thead>
+              <tr><th>User</th><th>Risk Score</th><th>Classification</th><th></th></tr>
+            </thead>
+            <tbody id="topSuspiciousBody">
+              <tr><td colspan="4" class="text-muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="ct-card p-3">
+        <div class="ct-card-title">🚨 Security Alerts</div>
+        <div id="alertsList" class="alerts-list">
+          <div class="text-muted">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- All users table -->
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="ct-card p-3">
+        <div class="ct-card-title">All Users</div>
+        <div class="table-responsive">
+          <table class="table ct-table align-middle mb-0">
+            <thead>
+              <tr><th>User</th><th>First Seen</th><th>Last Seen</th><th>Total Events</th><th>Max Risk Score</th><th>Status</th></tr>
+            </thead>
+            <tbody id="allUsersBody">
+              <tr><td colspan="6" class="text-muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- User detail modal -->
+<div class="modal fade" id="userModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content ct-modal">
+      <div class="modal-header">
+        <h5 class="modal-title" id="userModalTitle">User detail</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="userModalShap"></div>
+        <div id="userModalBody">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

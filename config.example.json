@@ -1,0 +1,16 @@
+{
+  "smtp": {
+    "enabled": false,
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "username": "your-account@gmail.com",
+    "password": "your-app-password",
+    "from_addr": "your-account@gmail.com",
+    "to_addr": "soc-team@example.com",
+    "use_tls": true
+  },
+  "webhook": {
+    "enabled": false,
+    "url": "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+  }
+}

@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+logs/*.csv
+logs/*.log
+flask_server.log
+database/*.db
+database/secret_key.txt
+config.json

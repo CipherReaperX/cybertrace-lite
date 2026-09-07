@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ct_database:/app/database
+      - ct_logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  ct_database:
+  ct_logs:
