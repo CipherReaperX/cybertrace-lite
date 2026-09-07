@@ -467,7 +467,16 @@ if (runPipelineBtn) {
     const label = document.getElementById("runBtnLabel");
     runPipelineBtn.disabled = true;
     spinner.classList.remove("d-none");
-    label.textContent = "Running pipeline...";
+
+    // The pipeline (log generation + both anomaly models + SHAP over every
+    // user-day) genuinely takes a while - a static "Running..." label with
+    // no visible progress reads as frozen, so tick an elapsed-time counter.
+    const runStart = Date.now();
+    label.textContent = "Running pipeline... 0s";
+    const tick = setInterval(() => {
+      label.textContent = `Running pipeline... ${Math.round((Date.now() - runStart) / 1000)}s`;
+    }, 1000);
+
     try {
       await apiFetch("/api/run_pipeline", {
         method: "POST",
@@ -476,9 +485,10 @@ if (runPipelineBtn) {
       });
       await loadAll();
     } finally {
+      clearInterval(tick);
       runPipelineBtn.disabled = false;
       spinner.classList.add("d-none");
-      label.textContent = "Regenerate Logs & Analyze";
+      label.textContent = "🔄 Regenerate Logs & Analyze";
     }
   });
 }
