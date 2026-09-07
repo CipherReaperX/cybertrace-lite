@@ -13,6 +13,16 @@
   --ct-highrisk: #ff4d6a;
   --ct-font-head: "Space Grotesk", "Segoe UI", sans-serif;
   --ct-font-body: "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+
+  /* Bootstrap reads these for .text-muted, <code>, alerts, etc. Bootstrap's
+     own :root defaults (dark gray text, pink code) are near-invisible or
+     jarring against this dark theme - retarget them here so every Bootstrap
+     utility that uses them (not just classes we hand-authored) stays legible. */
+  --bs-secondary-color: #8ea3c4;
+  --bs-body-color: #eaf1fb;
+  --bs-body-bg: transparent;
+  --bs-code-color: #7ecbff;
+  --bs-border-color: rgba(255, 255, 255, .08);
 }
 
 * { box-sizing: border-box; }
@@ -65,6 +75,23 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .stat-value, .ct-card-title {
   color: #04121f;
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(59, 163, 255, .5);
+}
+
+.ct-navbar .btn-outline-light {
+  --bs-btn-color: var(--ct-text);
+  --bs-btn-border-color: rgba(255, 255, 255, .18);
+  --bs-btn-hover-bg: rgba(59, 163, 255, .14);
+  --bs-btn-hover-border-color: var(--ct-accent);
+  --bs-btn-hover-color: var(--ct-text);
+  --bs-btn-active-bg: rgba(59, 163, 255, .2);
+  --bs-btn-active-border-color: var(--ct-accent);
+  --bs-btn-active-color: var(--ct-text);
+  background: rgba(255, 255, 255, .02);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.ct-navbar .btn-outline-light:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(59, 163, 255, .25);
 }
 
 /* --------------------------------------------------------------- cards -- */
@@ -183,15 +210,78 @@ h1, h2, h3, h4, h5, h6, .navbar-brand, .stat-value, .ct-card-title {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  position: relative;
+  overflow: hidden;
 }
-.login-wrap { width: 100%; max-width: 400px; padding: 1rem; }
-.login-card { padding: 2.2rem 1.9rem; }
-.login-logo { font-size: 2.4rem; margin-bottom: .25rem; }
+.login-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: .55;
+  pointer-events: none;
+  animation: ctDrift 14s ease-in-out infinite alternate;
+}
+.login-orb.a { width: 420px; height: 420px; top: -140px; left: -120px; background: radial-gradient(circle, var(--ct-accent-2), transparent 70%); }
+.login-orb.b { width: 380px; height: 380px; bottom: -160px; right: -100px; background: radial-gradient(circle, var(--ct-accent), transparent 70%); animation-delay: 3s; }
+.login-orb.c { width: 300px; height: 300px; bottom: 10%; left: 8%; background: radial-gradient(circle, var(--ct-normal), transparent 70%); opacity: .25; animation-delay: 6s; }
+@keyframes ctDrift {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(30px, -20px) scale(1.08); }
+}
+
+.login-wrap { width: 100%; max-width: 400px; padding: 1rem; position: relative; z-index: 1; }
+.login-card {
+  padding: 2.4rem 2rem;
+  position: relative;
+  border-image: linear-gradient(135deg, rgba(59,163,255,.5), rgba(124,92,255,.1) 40%, rgba(255,255,255,.06)) 1;
+}
+.login-logo {
+  font-size: 2.5rem;
+  margin-bottom: .4rem;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(59,163,255,.18), transparent 70%);
+  box-shadow: 0 0 0 1px rgba(59,163,255,.25), 0 0 30px rgba(59,163,255,.25);
+  filter: drop-shadow(0 0 10px rgba(59, 163, 255, .7));
+}
+.login-title {
+  letter-spacing: .06em;
+  background: linear-gradient(135deg, var(--ct-text), var(--ct-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.login-helper {
+  border-top: 1px solid var(--ct-panel-border);
+  padding-top: .9rem;
+  margin-top: 1.4rem;
+}
+.login-helper code {
+  background: rgba(59, 163, 255, .1);
+  border: 1px solid rgba(59, 163, 255, .25);
+  border-radius: 5px;
+  padding: .1rem .4rem;
+  font-size: .78rem;
+}
+
+.alert-danger {
+  background: rgba(255, 77, 106, .12);
+  border: 1px solid rgba(255, 77, 106, .35);
+  color: #ffb3c0;
+}
+
 .ct-input {
   background: rgba(255, 255, 255, .03);
   border: 1px solid var(--ct-panel-border);
   color: var(--ct-text);
 }
+.ct-input::placeholder { color: rgba(142, 163, 196, .55); }
 .ct-input:focus {
   background: rgba(255, 255, 255, .05);
   color: var(--ct-text);

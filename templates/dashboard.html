@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CyberTrace-Lite | User Behavior Security Monitor</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,19 +22,19 @@
     </span>
     <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
       <span id="lastUpdated" class="text-muted small me-1"></span>
-      <a href="{{ url_for('report') }}" class="btn btn-sm btn-outline-light">Report</a>
-      <a href="{{ url_for('export_csv') }}" class="btn btn-sm btn-outline-light">Export CSV</a>
+      <a href="{{ url_for('report') }}" class="btn btn-sm btn-outline-light">📄 Report</a>
+      <a href="{{ url_for('export_csv') }}" class="btn btn-sm btn-outline-light">⬇️ Export CSV</a>
       {% if current_role == 'admin' %}
-      <a href="{{ url_for('upload_logs') }}" class="btn btn-sm btn-outline-light">Upload Logs</a>
-      <a href="{{ url_for('settings_page') }}" class="btn btn-sm btn-outline-light">Settings</a>
-      <a href="{{ url_for('audit_log_page') }}" class="btn btn-sm btn-outline-light">Audit Log</a>
+      <a href="{{ url_for('upload_logs') }}" class="btn btn-sm btn-outline-light">⬆️ Upload Logs</a>
+      <a href="{{ url_for('settings_page') }}" class="btn btn-sm btn-outline-light">⚙️ Settings</a>
+      <a href="{{ url_for('audit_log_page') }}" class="btn btn-sm btn-outline-light">📜 Audit Log</a>
       <button id="runPipelineBtn" class="btn btn-sm ct-btn-primary">
-        <span id="runBtnLabel">Regenerate Logs &amp; Analyze</span>
+        <span id="runBtnLabel">🔄 Regenerate Logs &amp; Analyze</span>
         <span id="runBtnSpinner" class="spinner-border spinner-border-sm d-none ms-1"></span>
       </button>
       {% endif %}
       <span class="user-chip">👤 {{ current_user }} ({{ current_role }})</span>
-      <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">Logout</a>
+      <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">🚪 Logout</a>
     </div>
   </div>
 </nav>

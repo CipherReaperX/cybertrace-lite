@@ -39,6 +39,36 @@ function classColorHex(classification) {
   return 0x2fd394;
 }
 
+// Deterministic 0..1 pseudo-random from a string, so re-renders (regenerate,
+// window resize) don't reshuffle points, but rows that would otherwise land
+// on the exact same pixel (many NORMAL rows round to similar scores) spread
+// into a visible little cloud instead of collapsing into a single dot.
+function hash01(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+let glowTexture = null;
+function getGlowTexture() {
+  if (glowTexture) return glowTexture;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.35, "rgba(255,255,255,.75)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  glowTexture = new THREE.CanvasTexture(canvas);
+  return glowTexture;
+}
+
 function renderRisk3D(rows) {
   const container = document.getElementById("risk3d");
   if (!container || typeof THREE === "undefined") return;
@@ -82,11 +112,16 @@ function renderRisk3D(rows) {
   const positions = new Float32Array(n * 3);
   const colors = new Float32Array(n * 3);
   const c = new THREE.Color();
+  const JITTER = 0.8;
 
   rows.forEach((r, i) => {
-    positions[i * 3] = (r.rule_score / 100) * 10 - 5;
-    positions[i * 3 + 1] = (r.anomaly_score / 100) * 10 - 5;
-    positions[i * 3 + 2] = (r.final_score / 100) * 10 - 5;
+    const key = `${r.username}|${r.date}`;
+    const jx = (hash01(key + "x") - 0.5) * JITTER;
+    const jy = (hash01(key + "y") - 0.5) * JITTER;
+    const jz = (hash01(key + "z") - 0.5) * JITTER;
+    positions[i * 3] = (r.rule_score / 100) * 10 - 5 + jx;
+    positions[i * 3 + 1] = (r.anomaly_score / 100) * 10 - 5 + jy;
+    positions[i * 3 + 2] = (r.final_score / 100) * 10 - 5 + jz;
     c.setHex(classColorHex(r.classification));
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
@@ -98,15 +133,38 @@ function renderRisk3D(rows) {
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.PointsMaterial({
-    size: 0.22,
+    size: 0.42,
+    map: getGlowTexture(),
     vertexColors: true,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.95,
     sizeAttenuation: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
   group.add(new THREE.Points(geometry, material));
+
+  // Faint ambient starfield behind the data for depth/atmosphere.
+  const starCount = 140;
+  const starPositions = new Float32Array(starCount * 3);
+  for (let i = 0; i < starCount; i++) {
+    starPositions[i * 3] = (hash01("star" + i + "x") - 0.5) * 30;
+    starPositions[i * 3 + 1] = (hash01("star" + i + "y") - 0.5) * 30;
+    starPositions[i * 3 + 2] = (hash01("star" + i + "z") - 0.5) * 30 - 8;
+  }
+  const starGeometry = new THREE.BufferGeometry();
+  starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
+  const starMaterial = new THREE.PointsMaterial({
+    size: 0.06,
+    color: 0x3ba3ff,
+    map: getGlowTexture(),
+    transparent: true,
+    opacity: 0.35,
+    sizeAttenuation: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  group.add(new THREE.Points(starGeometry, starMaterial));
 
   let dragging = false, lastX = 0, lastY = 0;
   const onDown = (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; };

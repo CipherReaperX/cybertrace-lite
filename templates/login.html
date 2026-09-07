@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign in | CyberTrace-Lite</title>
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -11,11 +12,14 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="login-body">
+  <div class="login-orb a"></div>
+  <div class="login-orb b"></div>
+  <div class="login-orb c"></div>
   <div class="login-wrap">
     <div class="ct-card login-card">
-      <div class="text-center mb-3">
+      <div class="text-center mb-4">
         <div class="ct-logo login-logo">🛡</div>
-        <h4 class="mb-0">CYBERTRACE-LITE</h4>
+        <h4 class="mb-1 mt-2 login-title">CYBERTRACE-LITE</h4>
         <div class="text-muted small">User Behavior Security Monitor</div>
       </div>
 
@@ -26,16 +30,16 @@
       <form method="post" action="{{ url_for('login', next=request.args.get('next')) }}">
         <div class="mb-3">
           <label class="form-label small text-muted">Username</label>
-          <input type="text" name="username" class="form-control ct-input" autocomplete="username" required autofocus>
+          <input type="text" name="username" class="form-control ct-input" placeholder="Enter your username" autocomplete="username" required autofocus>
         </div>
         <div class="mb-3">
           <label class="form-label small text-muted">Password</label>
-          <input type="password" name="password" class="form-control ct-input" autocomplete="current-password" required>
+          <input type="password" name="password" class="form-control ct-input" placeholder="Enter your password" autocomplete="current-password" required>
         </div>
         <button type="submit" class="btn ct-btn-primary w-100 mt-2">Sign in</button>
       </form>
 
-      <div class="text-muted small text-center mt-3">
+      <div class="text-muted small text-center login-helper">
         Default account: <code>admin</code> / <code>admin123</code> — change it with
         <code>python manage_users.py reset-password admin &lt;new_password&gt;</code>
       </div>
