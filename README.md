@@ -16,6 +16,10 @@
 
 </div>
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" width="100%" alt="CyberTrace-Lite analyst dashboard — live stat tiles, 3D risk landscape and model insights">
+</p>
+
 ---
 
 ## Why CyberTrace-Lite
@@ -61,6 +65,39 @@ LOG FILES (synthetic or uploaded)
                                      SQLite  ──▶  Analyst Dashboard  ──▶  7. Email / Webhook Alert
                                                                             (de-duplicated per incident)
 ```
+
+## Screenshots
+
+<table>
+<tr>
+<td width="50%">
+
+**Risk distribution & top suspicious accounts**
+<img src="docs/screenshots/risk-distribution.png" width="100%" alt="Risk distribution donut chart and ranked table of top suspicious users">
+
+</td>
+<td width="50%">
+
+**Per-account SHAP explainability**
+<img src="docs/screenshots/user-explainability.png" width="100%" alt="User detail modal showing top contributing SHAP factors and daily risk history">
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Session-based login**
+<img src="docs/screenshots/login.png" width="100%" alt="CyberTrace-Lite login screen">
+
+</td>
+<td width="50%">
+
+**Printable security report**
+<img src="docs/screenshots/report.png" width="100%" alt="Printable security report page">
+
+</td>
+</tr>
+</table>
 
 ## Modules
 
