@@ -44,25 +44,25 @@
   <!-- Stat cards -->
   <div class="row g-3 mb-3">
     <div class="col-6 col-md-3">
-      <div class="ct-card stat-card">
+      <div class="ct-card stat-card stat-card-clickable" role="button" tabindex="0" onclick="statCardClick('all')" onkeydown="if(event.key==='Enter')statCardClick('all')">
         <div class="stat-label">USERS</div>
         <div class="stat-value" id="statUsers">--</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="ct-card stat-card">
+      <div class="ct-card stat-card stat-card-clickable" role="button" tabindex="0" onclick="statCardClick('events')" onkeydown="if(event.key==='Enter')statCardClick('events')">
         <div class="stat-label">EVENTS</div>
         <div class="stat-value" id="statEvents">--</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="ct-card stat-card">
+      <div class="ct-card stat-card stat-card-clickable" role="button" tabindex="0" onclick="statCardClick('alerts')" onkeydown="if(event.key==='Enter')statCardClick('alerts')">
         <div class="stat-label">ALERTS</div>
         <div class="stat-value stat-alert" id="statAlerts">--</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="ct-card stat-card">
+      <div class="ct-card stat-card stat-card-clickable" role="button" tabindex="0" onclick="statCardClick('HIGH RISK')" onkeydown="if(event.key==='Enter')statCardClick('HIGH RISK')">
         <div class="stat-label">HIGH RISK USERS</div>
         <div class="stat-value stat-highrisk" id="statHighRisk">--</div>
       </div>
@@ -76,7 +76,7 @@
         <div class="ct-card-title">🌐 Risk Landscape (3D)</div>
         <div class="risk3d-wrap" id="risk3d"></div>
         <div class="risk3d-caption">
-          <span>X: Rule Score &nbsp;·&nbsp; Y: Anomaly Score &nbsp;·&nbsp; Z: Final Score &nbsp;·&nbsp; drag to rotate</span>
+          <span>Drag to rotate &nbsp;·&nbsp; scroll to zoom &nbsp;·&nbsp; hover to pause auto-rotate</span>
           <span class="risk3d-legend">
             <span><span class="risk3d-dot" style="background:var(--ct-normal)"></span>Normal</span>
             <span><span class="risk3d-dot" style="background:var(--ct-suspicious)"></span>Suspicious</span>
@@ -156,8 +156,11 @@
   <!-- All users table -->
   <div class="row g-3 mb-4">
     <div class="col-12">
-      <div class="ct-card p-3">
-        <div class="ct-card-title">All Users</div>
+      <div class="ct-card p-3" id="allUsersCard">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+          <div class="ct-card-title mb-0">All Users</div>
+          <div id="userFilterBadge"></div>
+        </div>
         <div class="table-responsive">
           <table class="table ct-table align-middle mb-0">
             <thead>

@@ -69,12 +69,31 @@ function getGlowTexture() {
   return glowTexture;
 }
 
+function axisLabelSprite(text, hex) {
+  const c = document.createElement("canvas");
+  c.width = 200; c.height = 72;
+  const cx = c.getContext("2d");
+  cx.font = "600 30px Inter, Segoe UI, sans-serif";
+  cx.fillStyle = hex;
+  cx.textAlign = "center";
+  cx.textBaseline = "middle";
+  cx.shadowColor = hex;
+  cx.shadowBlur = 12;
+  cx.fillText(text, 100, 36);
+  const tex = new THREE.CanvasTexture(c);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sprite.scale.set(2.6, 0.94, 1);
+  return sprite;
+}
+
 function renderRisk3D(rows) {
   const container = document.getElementById("risk3d");
   if (!container || typeof THREE === "undefined") return;
 
   if (risk3dState) {
     cancelAnimationFrame(risk3dState.rafId);
+    risk3dState.abortController.abort();
+    risk3dState.resizeObserver.disconnect();
     risk3dState.renderer.dispose();
     risk3dState = null;
   }
@@ -85,8 +104,12 @@ function renderRisk3D(rows) {
   const height = container.clientHeight || 360;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-  camera.position.set(9, 7, 9);
+  scene.fog = new THREE.FogExp2(0x0a1120, 0.05);
+
+  const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+  const homeDir = new THREE.Vector3(9, 7, 9).normalize();
+  const homeDist = new THREE.Vector3(9, 7, 9).length();
+  camera.position.copy(homeDir).multiplyScalar(homeDist * 2.3);
   camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -97,16 +120,42 @@ function renderRisk3D(rows) {
   const group = new THREE.Group();
   scene.add(group);
 
-  const grid = new THREE.GridHelper(12, 12, 0x3ba3ff, 0x22304a);
+  const grid = new THREE.GridHelper(14, 14, 0x3ba3ff, 0x1c2740);
   grid.position.y = -5;
   grid.material.transparent = true;
-  grid.material.opacity = 0.18;
+  grid.material.opacity = 0.16;
   group.add(grid);
 
-  const axes = new THREE.AxesHelper(6);
-  axes.material.transparent = true;
-  axes.material.opacity = 0.25;
-  group.add(axes);
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(14, 14),
+    new THREE.MeshBasicMaterial({ color: 0x3ba3ff, transparent: true, opacity: 0.035, side: THREE.DoubleSide })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = -5.02;
+  group.add(floor);
+
+  // Colored axis lines + floating labels, so the chart reads on its own
+  // without needing the caption legend below it.
+  const axisSpecs = [
+    { dim: 0, color: 0xff6b81, hex: "#ff6b81", label: "RULE" },
+    { dim: 1, color: 0x3ba3ff, hex: "#7ecbff", label: "ANOMALY" },
+    { dim: 2, color: 0x2fd394, hex: "#5fe0ac", label: "FINAL" },
+  ];
+  axisSpecs.forEach(({ dim, color, hex, label }) => {
+    const from = [-5, -5, -5];
+    const to = [-5, -5, -5];
+    to[dim] = 5;
+    const geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(...from), new THREE.Vector3(...to),
+    ]);
+    const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.45 });
+    group.add(new THREE.Line(geo, mat));
+    const sprite = axisLabelSprite(label, hex);
+    const labelPos = [...to];
+    labelPos[dim] += 1.1;
+    sprite.position.set(...labelPos);
+    group.add(sprite);
+  });
 
   const n = rows.length;
   const positions = new Float32Array(n * 3);
@@ -166,33 +215,76 @@ function renderRisk3D(rows) {
   });
   group.add(new THREE.Points(starGeometry, starMaterial));
 
-  let dragging = false, lastX = 0, lastY = 0;
-  const onDown = (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; };
+  // Drag-to-rotate with momentum on release; auto-drift pauses on hover so
+  // the cloud can actually be read, and resumes once the pointer leaves.
+  let dragging = false, hovering = false, lastX = 0, lastY = 0, velY = 0, velX = 0;
+  const abortController = new AbortController();
+  const listenerOpts = { signal: abortController.signal };
+
+  const onDown = (e) => { dragging = true; velY = 0; velX = 0; lastX = e.clientX; lastY = e.clientY; };
   const onUp = () => { dragging = false; };
   const onMove = (e) => {
     if (!dragging) return;
     const dx = e.clientX - lastX, dy = e.clientY - lastY;
-    group.rotation.y += dx * 0.006;
-    group.rotation.x = Math.max(-1.1, Math.min(1.1, group.rotation.x + dy * 0.006));
+    velY = dx * 0.006;
+    velX = dy * 0.006;
+    group.rotation.y += velY;
+    group.rotation.x = Math.max(-1.1, Math.min(1.1, group.rotation.x + velX));
     lastX = e.clientX; lastY = e.clientY;
   };
-  container.addEventListener("pointerdown", onDown);
-  window.addEventListener("pointerup", onUp);
-  window.addEventListener("pointermove", onMove);
+  const onEnter = () => { hovering = true; };
+  const onLeave = () => { hovering = false; dragging = false; };
+
+  container.addEventListener("pointerdown", onDown, listenerOpts);
+  container.addEventListener("pointerenter", onEnter, listenerOpts);
+  container.addEventListener("pointerleave", onLeave, listenerOpts);
+  window.addEventListener("pointerup", onUp, listenerOpts);
+  window.addEventListener("pointermove", onMove, listenerOpts);
   container.addEventListener("wheel", (e) => {
     e.preventDefault();
     const dir = camera.position.clone().normalize();
-    const dist = Math.max(6, Math.min(26, camera.position.length() * (1 + e.deltaY * 0.001)));
+    const dist = Math.max(6, Math.min(30, camera.position.length() * (1 + e.deltaY * 0.001)));
     camera.position.copy(dir.multiplyScalar(dist));
-  }, { passive: false });
+  }, { passive: false, signal: abortController.signal });
 
-  function animate() {
-    if (!dragging) group.rotation.y += 0.0018;
+  const resizeObserver = new ResizeObserver(() => {
+    const w = container.clientWidth || width;
+    const h = container.clientHeight || height;
+    if (w < 10 || h < 10) return;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+  resizeObserver.observe(container);
+
+  const introStart = performance.now();
+  const introDuration = 900;
+
+  function animate(now) {
+    const introP = Math.min(1, (now - introStart) / introDuration);
+    if (introP < 1) {
+      const eased = 1 - Math.pow(1 - introP, 3);
+      const dist = homeDist * (2.3 - 1.3 * eased);
+      camera.position.copy(homeDir).multiplyScalar(dist);
+      camera.lookAt(0, 0, 0);
+    }
+
+    if (!dragging) {
+      if (Math.abs(velY) > 0.0002 || Math.abs(velX) > 0.0002) {
+        group.rotation.y += velY;
+        group.rotation.x = Math.max(-1.1, Math.min(1.1, group.rotation.x + velX));
+        velY *= 0.94;
+        velX *= 0.94;
+      } else if (!hovering) {
+        group.rotation.y += 0.0014;
+      }
+    }
+
     renderer.render(scene, camera);
     risk3dState.rafId = requestAnimationFrame(animate);
   }
-  risk3dState = { renderer, rafId: 0 };
-  animate();
+  risk3dState = { renderer, rafId: 0, abortController, resizeObserver };
+  requestAnimationFrame(animate);
 }
 
 async function loadRisk3D() {
@@ -290,6 +382,7 @@ async function loadRiskDistribution() {
   const ctx = document.getElementById("riskDonutChart");
   const counts = data.counts;
 
+  const sliceClasses = ["NORMAL", "SUSPICIOUS", "HIGH RISK"];
   if (donutChart) donutChart.destroy();
   donutChart = new Chart(ctx, {
     type: "doughnut",
@@ -305,15 +398,22 @@ async function loadRiskDistribution() {
     options: {
       plugins: { legend: { display: false } },
       cutout: "68%",
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        filterUsersByClassAndScroll(sliceClasses[elements[0].index]);
+      },
+      onHover: (evt, elements) => {
+        evt.native.target.style.cursor = elements.length ? "pointer" : "default";
+      },
     },
   });
 
   const legend = document.getElementById("riskLegend");
   const pct = data.percentages;
   legend.innerHTML = `
-    <div class="d-flex justify-content-between mb-1"><span><span class="badge-risk badge-normal">NORMAL</span></span><span>${pct["NORMAL"]}% (${counts["NORMAL"]})</span></div>
-    <div class="d-flex justify-content-between mb-1"><span><span class="badge-risk badge-suspicious">SUSPICIOUS</span></span><span>${pct["SUSPICIOUS"]}% (${counts["SUSPICIOUS"]})</span></div>
-    <div class="d-flex justify-content-between"><span><span class="badge-risk badge-highrisk">HIGH RISK</span></span><span>${pct["HIGH RISK"]}% (${counts["HIGH RISK"]})</span></div>
+    <div class="d-flex justify-content-between mb-1 legend-row" onclick="filterUsersByClassAndScroll('NORMAL')"><span><span class="badge-risk badge-normal">NORMAL</span></span><span>${pct["NORMAL"]}% (${counts["NORMAL"]})</span></div>
+    <div class="d-flex justify-content-between mb-1 legend-row" onclick="filterUsersByClassAndScroll('SUSPICIOUS')"><span><span class="badge-risk badge-suspicious">SUSPICIOUS</span></span><span>${pct["SUSPICIOUS"]}% (${counts["SUSPICIOUS"]})</span></div>
+    <div class="d-flex justify-content-between legend-row" onclick="filterUsersByClassAndScroll('HIGH RISK')"><span><span class="badge-risk badge-highrisk">HIGH RISK</span></span><span>${pct["HIGH RISK"]}% (${counts["HIGH RISK"]})</span></div>
   `;
 }
 
@@ -344,7 +444,7 @@ async function loadAlerts() {
     return;
   }
   list.innerHTML = data.map(a => `
-    <div class="alert-item ${a.severity === 'HIGH' ? 'severity-high' : 'severity-medium'}">
+    <div class="alert-item ${a.severity === 'HIGH' ? 'severity-high' : 'severity-medium'}" onclick="showUser('${a.username}')">
       <span>🚨</span>
       <span>${a.message}</span>
       <span class="alert-time">${a.date}</span>
@@ -352,24 +452,69 @@ async function loadAlerts() {
   `).join("");
 }
 
+let allUsersData = [];
+let userFilterClass = null; // null = no filter, else "HIGH RISK" / "SUSPICIOUS" / "NORMAL"
+
+function renderAllUsersTable() {
+  const body = document.getElementById("allUsersBody");
+  const rows = userFilterClass ? allUsersData.filter(u => u.classification === userFilterClass) : allUsersData;
+
+  if (!allUsersData.length) {
+    body.innerHTML = `<tr><td colspan="6" class="text-muted">No data</td></tr>`;
+  } else if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="6" class="text-muted">No users match this filter</td></tr>`;
+  } else {
+    body.innerHTML = rows.map(u => `
+      <tr class="row-link" onclick="showUser('${u.username}')">
+        <td>${u.username}</td>
+        <td>${fmtDate(u.first_seen)}</td>
+        <td>${fmtDate(u.last_seen)}</td>
+        <td>${u.total_events}</td>
+        <td>${u.max_score}</td>
+        <td><span class="badge-risk ${badgeClass(u.classification)}">${u.classification}</span></td>
+      </tr>
+    `).join("");
+  }
+
+  const badge = document.getElementById("userFilterBadge");
+  badge.innerHTML = userFilterClass
+    ? `<span class="badge-risk ${badgeClass(userFilterClass)}">${userFilterClass} (${rows.length})</span>
+       <button type="button" class="btn btn-sm btn-outline-light ms-2 py-0 px-2" onclick="clearUserFilter()">Clear filter ✕</button>`
+    : "";
+}
+
+function clearUserFilter() {
+  userFilterClass = null;
+  renderAllUsersTable();
+}
+
+function filterUsersByClass(classification) {
+  userFilterClass = classification;
+  renderAllUsersTable();
+}
+
+function filterUsersByClassAndScroll(classification) {
+  filterUsersByClass(classification);
+  document.getElementById("allUsersCard").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 async function loadAllUsers() {
   const res = await apiFetch("/api/users");
-  const data = await res.json();
-  const body = document.getElementById("allUsersBody");
-  if (!data.length) {
-    body.innerHTML = `<tr><td colspan="6" class="text-muted">No data</td></tr>`;
-    return;
+  allUsersData = await res.json();
+  renderAllUsersTable();
+}
+
+function statCardClick(kind) {
+  if (kind === "HIGH RISK") {
+    filterUsersByClassAndScroll("HIGH RISK");
+  } else if (kind === "all") {
+    clearUserFilter();
+    document.getElementById("allUsersCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  } else if (kind === "events") {
+    document.getElementById("timelineChart").scrollIntoView({ behavior: "smooth", block: "center" });
+  } else if (kind === "alerts") {
+    document.getElementById("alertsList").scrollIntoView({ behavior: "smooth", block: "start" });
   }
-  body.innerHTML = data.map(u => `
-    <tr class="row-link" onclick="showUser('${u.username}')">
-      <td>${u.username}</td>
-      <td>${fmtDate(u.first_seen)}</td>
-      <td>${fmtDate(u.last_seen)}</td>
-      <td>${u.total_events}</td>
-      <td>${u.max_score}</td>
-      <td><span class="badge-risk ${badgeClass(u.classification)}">${u.classification}</span></td>
-    </tr>
-  `).join("");
 }
 
 function renderShapBars(historyRows) {
